@@ -1,3 +1,10 @@
+# Inside app.py
+from src.batching_engine import DeliveryBatchEngine, Order
+
+engine = DeliveryBatchEngine(avg_speed_kmh=20.0)
+# Pass orders and riders into engine.process_and_batch_orders(...)
+
+
 import os
 import pandas as pd
 import plotly.express as px
