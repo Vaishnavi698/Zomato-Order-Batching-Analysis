@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zomato | Real-Time Order Batching Simulator</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        :root {
+            --zomato-red: #E23744;
+            --bg-color: #0B1120;
+            --card-bg: #1E293B;
+            --text-color: #F8FAFC;
+            --accent-green: #10B981;
+        }
+        body {
+            font-family: 'Segoe UI', Inter, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #E23744, #881337);
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(226, 55, 68, 0.3);
+            margin-bottom: 20px;
+        }
+        .header h1 { margin: 0; font-size: 22px; }
+        .header p { margin: 4px 0 0 0; opacity: 0.9; font-size: 13px; }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 280px minmax(0, 1fr);
+            gap: 20px;
+            width: 100%;
+        }
+
+        .controls-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 1px solid #334155;
+            height: fit-content;
+        }
+        .control-group { margin-bottom: 20px; }
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--zomato-red);
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            padding: 14px;
+            border-radius: 10px;
+            border-left: 4px solid var(--zomato-red);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .kpi-title { 
+            font-size: 10px; 
+            text-transform: uppercase; 
+            color: #94A3B8; 
+            font-weight: 700; 
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .kpi-value { font-size: 24px; font-weight: bold; margin-top: 4px; color: #FFF; }
+        .kpi-sub { font-size: 11px; color: #64748B; margin-top: 2px; }
+
+        /* Navigation Tabs */
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 4px;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: #94A3B8;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--card-bg);
+            color: #FFF;
+            border-bottom: 3px solid var(--zomato-red);
+        }
+        .tab-content { display: none; width: 100%; }
+        .tab-content.active { display: block; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            width: 100%;
+        }
+        .chart-card {
+            background: var(--card-bg);
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            min-width: 0; /* Prevents Plotly canvas overflow */
+        }
+        .chart-card h4 {
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            color: #CBD5E1;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1>🍔 Zomato Real-Time Order Batching Simulator</h1>
+            <p>Adjust parameters to observe live animation of order routing, customer wait times, and savings.</p>
+        </div>
+        <div style="text-align: right;">
+            <span style="background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;">⚡ LIVE SIMULATION ENGINE</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Sidebar Controls -->
+        <div class="controls-card">
+            <h3 style="margin-top:0; border-bottom: 1px solid #334155; padding-bottom: 10px; font-size: 15px;">⚙️ Real-Time Filters</h3>
+            
+            <div class="control-group">
+                <label><span>Max Food Ready Gap</span> <span id="readyGapVal" style="color:var(--zomato-red)">15 mins</span></label>
+                <input type="range" id="readyGapSlider" min="0" max="60" value="15" oninput="updateSimulation()">
+            </div>
+
+            <div class="control-group">
+                <label><span>Max Allowed Delay (ETA)</span> <span id="etaVal" style="color:var(--zomato-red)">5 mins</span></label>
+                <input type="range" id="etaSlider" min="0" max="30" value="5" oninput="updateSimulation()">
+            </div>
+
+            <div class="control-group">
+                <label><span>Max Drop-off Distance</span> <span id="distVal" style="color:var(--zomato-red)">3 km</span></label>
+                <input type="range" id="distSlider" min="0.5" max="8.0" step="0.5" value="3.0" oninput="updateSimulation()">
+            </div>
+
+            <div class="control-group" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0;">
+                <label style="margin:0;">Include Priority Orders</label>
+                <input type="checkbox" id="priorityToggle" onchange="updateSimulation()" style="width: 18px; height: 18px; accent-color: var(--zomato-red);">
+            </div>
+        </div>
+
+        <!-- Right Content Section -->
+        <div style="min-width: 0;">
+            <!-- Clean 5-KPI Top Row (Restored exact labels & fit) -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title">BATCHED PAIRS</div>
+                    <div class="kpi-value" id="kpiBatched">4</div>
+                    <div class="kpi-sub">Orders combined into 1 trip</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">FEASIBILITY RATE</div>
+                    <div class="kpi-value" id="kpiRate">50.0%</div>
+                    <div class="kpi-sub">% of total orders eligible</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">ZOMATO SAVINGS</div>
+                    <div class="kpi-value" id="kpiSavings">₹100</div>
+                    <div class="kpi-sub">₹25 saved per batch</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">FEWER RIDERS NEEDED</div>
+                    <div class="kpi-value" id="kpiRiders">4</div>
+                    <div class="kpi-sub">1 rider handles 2 orders</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">AVG DELAY (PERSON B)</div>
+                    <div class="kpi-value" id="kpiDelay" style="color: #10B981;">+2.5 m</div>
+                    <div class="kpi-sub" id="kpiDelaySub">Max Cap: 5 mins limit</div>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <div class="tab-bar">
+                <button class="tab-btn active" id="btn-tab1" onclick="switchTab('tab-sim')">🚀 Route & Batching Overview</button>
+                <button class="tab-btn" id="btn-tab2" onclick="switchTab('tab-eta')">⏱️ Multi-Customer Real-Time Tracking</button>
+            </div>
+
+            <!-- Tab 1: Route & Rejection Overview -->
+            <div id="tab-sim" class="tab-content active">
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h4>🗺️ Animated Delivery Distance & Spatial Spread</h4>
+                        <div id="routePlot" style="height: 310px; width:100%;"></div>
+                    </div>
+                    <div class="chart-card">
+                        <h4>📊 Live Rejection Reason Breakdown</h4>
+                        <div id="rejectionPlot" style="height: 310px; width:100%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Multi-Customer Live ETA SLA Tracking (Clean & Width Fixed) -->
+            <div id="tab-eta" class="tab-content">
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h4>🎯 Customer B Extra Delivery Wait Time (mins)</h4>
+                        <div id="delayPlot" style="height: 310px; width:100%;"></div>
+                    </div>
+                    <div class="chart-card">
+                        <h4>👥 Multi-Customer Stop Sequencing (Order A vs Order B vs Order C)</h4>
+                        <div id="multiCustomerPlot" style="height: 310px; width:100%;"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const rawData = [
+            { id: 'Pair 1', readyGap: 12, etaInc: 3.5, dist: 2.1, isPriority: false, savings: 25, x: 2.1, y: 1.5, delayA: 0.0, delayB: 3.5, delayC: 5.2 },
+            { id: 'Pair 2', readyGap: 25, etaInc: 12.0, dist: 4.5, isPriority: false, savings: 25, x: 4.5, y: 3.2, delayA: 0.0, delayB: 12.0, delayC: 16.5 },
+            { id: 'Pair 3', readyGap: 8, etaInc: 2.1, dist: 1.2, isPriority: false, savings: 25, x: 1.2, y: 0.8, delayA: 0.0, delayB: 2.1, delayC: 4.0 },
+            { id: 'Pair 4', readyGap: 5, etaInc: 4.8, dist: 2.8, isPriority: true, savings: 25, x: 2.8, y: 2.0, delayA: 0.0, delayB: 4.8, delayC: 7.1 },
+            { id: 'Pair 5', readyGap: 40, etaInc: 18.0, dist: 6.0, isPriority: false, savings: 25, x: 6.0, y: 4.8, delayA: 0.0, delayB: 18.0, delayC: 22.4 },
+            { id: 'Pair 6', readyGap: 10, etaInc: 3.0, dist: 1.8, isPriority: false, savings: 25, x: 1.8, y: 1.1, delayA: 0.0, delayB: 3.0, delayC: 5.0 },
+            { id: 'Pair 7', readyGap: 18, etaInc: 8.5, dist: 3.2, isPriority: false, savings: 25, x: 3.2, y: 2.5, delayA: 0.0, delayB: 8.5, delayC: 11.2 },
+            { id: 'Pair 8', readyGap: 6, etaInc: 1.5, dist: 0.9, isPriority: false, savings: 25, x: 0.9, y: 0.5, delayA: 0.0, delayB: 1.5, delayC: 2.8 }
+        ];
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            if(tabId === 'tab-sim') {
+                document.getElementById('btn-tab1').classList.add('active');
+                document.getElementById('tab-sim').classList.add('active');
+            } else {
+                document.getElementById('btn-tab2').classList.add('active');
+                document.getElementById('tab-eta').classList.add('active');
+            }
+            
+            // Force Plotly to resize cleanly inside container boundaries upon tab click
+            window.dispatchEvent(new Event('resize'));
+        }
+
+        function updateSimulation() {
+            const readyGap = parseFloat(document.getElementById('readyGapSlider').value);
+            const maxEta = parseFloat(document.getElementById('etaSlider').value);
+            const dist = parseFloat(document.getElementById('distSlider').value);
+            const allowPriority = document.getElementById('priorityToggle').checked;
+
+            document.getElementById('readyGapVal').innerText = readyGap + " mins";
+            document.getElementById('etaVal').innerText = maxEta + " mins";
+            document.getElementById('distVal').innerText = dist + " km";
+            document.getElementById('kpiDelaySub').innerText = "Max Cap: " + maxEta + " mins limit";
+
+            let batchedCount = 0;
+            let totalSavings = 0;
+            let totalDelayB = 0;
+
+            let rejections = { 'Priority Protected': 0, 'Food Ready Gap': 0, 'ETA Delay Exceeded': 0, 'Distance Too High': 0 };
+            
+            let plotX = [], plotY = [], plotColors = [], plotLabels = [];
+            let pairNames = [], pairDelays = [], pairColorsBar = [], pairLabelsText = [];
+            let delayA = [], delayB = [], delayC = [];
+
+            rawData.forEach(item => {
+                let isEligible = true;
+
+                if (!allowPriority && item.isPriority) {
+                    isEligible = false;
+                    rejections['Priority Protected']++;
+                } else if (item.readyGap > readyGap) {
+                    isEligible = false;
+                    rejections['Food Ready Gap']++;
+                } else if (item.etaInc > maxEta) {
+                    isEligible = false;
+                    rejections['ETA Delay Exceeded']++;
+                } else if (item.dist > dist) {
+                    isEligible = false;
+                    rejections['Distance Too High']++;
+                }
+
+                plotX.push(item.x);
+                plotY.push(item.y);
+                pairNames.push(item.id);
+                pairDelays.push(item.etaInc);
+                pairLabelsText.push(`+${item.etaInc} m`);
+
+                delayA.push(item.delayA);
+                delayB.push(item.delayB);
+                delayC.push(item.delayC);
+
+                if (isEligible) {
+                    batchedCount++;
+                    totalSavings += item.savings;
+                    totalDelayB += item.etaInc;
+                    plotColors.push('#10B981');
+                    pairColorsBar.push('#10B981');
+                    plotLabels.push(`${item.id}: BATCHED`);
+                } else {
+                    plotColors.push('#E23744');
+                    pairColorsBar.push('#E23744');
+                    plotLabels.push(`${item.id}: UNBATCHED`);
+                }
+            });
+
+            const avgDelay = batchedCount > 0 ? (totalDelayB / batchedCount).toFixed(1) : "0.0";
+
+            document.getElementById('kpiBatched').innerText = batchedCount;
+            document.getElementById('kpiRate').innerText = ((batchedCount / rawData.length) * 100).toFixed(1) + "%";
+            document.getElementById('kpiSavings').innerText = "₹" + totalSavings;
+            document.getElementById('kpiRiders').innerText = batchedCount;
+            document.getElementById('kpiDelay').innerText = "+" + avgDelay + " m";
+
+            const plotlyConfig = { responsive: true, displayModeBar: false };
+            const layoutBase = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#94A3B8', family: 'Segoe UI, sans-serif', size: 11 },
+                margin: { l: 35, r: 15, t: 15, b: 35 },
+                autosize: true
+            };
+
+            // Plot 1: Distance Scatter Plot
+            Plotly.react('routePlot', [{
+                x: plotX, y: plotY, mode: 'markers', type: 'scatter', text: plotLabels,
+                marker: { size: 14, color: plotColors, line: { color: '#FFFFFF', width: 1.5 } }
+            }], {
+                ...layoutBase,
+                xaxis: { title: 'Customer Distance (km)', gridcolor: '#334155', zerolinecolor: '#334155' },
+                yaxis: { title: 'Spatial Spread (km)', gridcolor: '#334155', zerolinecolor: '#334155' }
+            }, plotlyConfig);
+
+            // Plot 2: Rejection Reason Breakdown
+            Plotly.react('rejectionPlot', [{
+                x: Object.keys(rejections), y: Object.values(rejections), type: 'bar',
+                marker: { color: ['#FFB400', '#E23744', '#3B82F6', '#8B5CF6'] }
+            }], {
+                ...layoutBase,
+                xaxis: { gridcolor: '#334155', tickangle: -10 },
+                yaxis: { gridcolor: '#334155', zerolinecolor: '#334155' }
+            }, plotlyConfig);
+
+            // Plot 3: Delay Bar Chart in Tab 2
+            Plotly.react('delayPlot', [{
+                x: pairNames, y: pairDelays, type: 'bar', marker: { color: pairColorsBar },
+                text: pairLabelsText, textposition: 'outside', textfont: { color: '#FFF', size: 10 }
+            }], {
+                ...layoutBase,
+                yaxis: { title: 'Added Delay (mins)', gridcolor: '#334155', range: [0, 22] },
+                shapes: [{ type: 'line', x0: -0.5, x1: pairNames.length - 0.5, y0: maxEta, y1: maxEta, line: { color: '#F59E0B', width: 2, dash: 'dash' } }]
+            }, plotlyConfig);
+
+            // Plot 4: Clean Multi-Stop Delivery Sequencing in Tab 2
+            Plotly.react('multiCustomerPlot', [
+                { x: pairNames, y: delayA, name: 'Person A (First Drop)', type: 'bar', marker: { color: '#3B82F6' } },
+                { x: pairNames, y: delayB, name: 'Person B (Second Drop)', type: 'bar', marker: { color: '#10B981' } },
+                { x: pairNames, y: delayC, name: 'Person C (Third Drop)', type: 'bar', marker: { color: '#8B5CF6' } }
+            ], {
+                ...layoutBase,
+                barmode: 'group',
+                yaxis: { title: 'Added Delay (mins)', gridcolor: '#334155' },
+                legend: { orientation: 'h', y: 1.15, x: 0, font: { size: 10 } }
+            }, plotlyConfig);
+        }
+
+        updateSimulation();
+        window.addEventListener('resize', () => {
+            Plotly.Plots.resize('routePlot');
+            Plotly.Plots.resize('rejectionPlot');
+            Plotly.Plots.resize('delayPlot');
+            Plotly.Plots.resize('multiCustomerPlot');
+        });
+    </script>
+</body>
+</html>
