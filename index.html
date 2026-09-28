@@ -3,140 +3,476 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zomato Order-Batching Simulation Dashboard</title>
-    <!-- Include Tailwind CSS or custom styles -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Zomato | North Region Real-Time Order Batching Engine</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        :root {
+            --zomato-red: #E23744;
+            --bg-color: #0B1120;
+            --card-bg: #1E293B;
+            --text-color: #F8FAFC;
+            --accent-green: #10B981;
+        }
+        body {
+            font-family: 'Segoe UI', Inter, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #E23744, #881337);
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(226, 55, 68, 0.3);
+            margin-bottom: 20px;
+        }
+        .header h1 { margin: 0; font-size: 22px; }
+        .header p { margin: 4px 0 0 0; opacity: 0.9; font-size: 13px; }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 310px minmax(0, 1fr);
+            gap: 20px;
+            width: 100%;
+        }
+
+        .controls-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 1px solid #334155;
+            height: fit-content;
+        }
+        .control-group { margin-bottom: 18px; }
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        input[type=range] { width: 100%; accent-color: var(--zomato-red); }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            padding: 14px;
+            border-radius: 10px;
+            border-left: 4px solid var(--zomato-red);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .kpi-title { 
+            font-size: 10px; 
+            text-transform: uppercase; 
+            color: #94A3B8; 
+            font-weight: 700; 
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .kpi-value { font-size: 22px; font-weight: bold; margin-top: 4px; color: #FFF; }
+        .kpi-sub { font-size: 11px; color: #64748B; margin-top: 2px; }
+
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 4px;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: #94A3B8;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--card-bg);
+            color: #FFF;
+            border-bottom: 3px solid var(--zomato-red);
+        }
+        .tab-content { display: none; width: 100%; }
+        .tab-content.active { display: block; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            width: 100%;
+        }
+        .chart-card {
+            background: var(--card-bg);
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .chart-card h4 {
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            color: #CBD5E1;
+            font-weight: 600;
+        }
+
+        /* Mobile Layout & Responsiveness */
+        @media (max-width: 900px) {
+            body { padding: 12px; }
+            
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            .header h1 { font-size: 18px; }
+            
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+
+            .kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-bar {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .tab-btn {
+                text-align: left;
+                width: 100%;
+                border-radius: 6px;
+            }
+            
+            .tab-btn.active {
+                border-bottom: none;
+                border-left: 4px solid var(--zomato-red);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased">
+<body>
 
-    <!-- Header Section (Fixed truncation using flex-wrap and responsive padding) -->
-    <header class="w-full bg-slate-900 border-b border-slate-800 py-4 px-6 shadow-md">
-        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
-            <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white">
-                Hyper-Local Order-Batching Simulation
-            </h1>
-            <span class="text-xs uppercase tracking-wider bg-rose-500/10 text-rose-400 px-3 py-1 rounded-full border border-rose-500/20 font-medium">
-                Live Simulation Engine
-            </span>
+    <div class="header">
+        <div>
+            <h1>🍔 Zomato Real-Time Order Batching Engine (North Region)</h1>
+            <p>Hyper-local batching simulation for same-society drops, prep time sync, and rider dispatch optimization.</p>
         </div>
-    </header>
+        <div style="text-align: right;">
+            <span style="background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;">⚡ BATCHING & DISPATCH ENGINE</span>
+        </div>
+    </div>
 
-    <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        <!-- Controls Panel (Batching Safety Rules Sliders) -->
-        <aside class="lg:col-span-1 bg-slate-900/80 border border-slate-800 p-5 rounded-xl shadow-lg backdrop-blur-sm">
-            <div class="flex items-center gap-2 mb-4 border-b border-slate-800 pb-3">
-                <svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
-                <h2 class="font-semibold text-lg text-white">Batching Safety Rules</h2>
+    <div class="main-container">
+        <!-- Sidebar Controls & Filtering Constraints -->
+        <div class="controls-card">
+            <h3 style="margin-top:0; border-bottom: 1px solid #334155; padding-bottom: 10px; font-size: 15px;">⚙️ Batching Safety Rules</h3>
+            
+            <div class="control-group">
+                <label><span>Max Prep Ready Gap</span> <span id="readyGapVal" style="color:var(--zomato-red)">15 mins</span></label>
+                <input type="range" id="readyGapSlider" min="0" max="40" value="15" oninput="updateSimulation()">
             </div>
 
-            <div class="space-y-5">
-                <div>
-                    <div class="flex justify-between text-sm mb-1">
-                        <span class="text-slate-300">Max Prep Ready Gap</span>
-                        <span id="readyGapVal" class="text-rose-400 font-semibold">30 mins</span>
+            <div class="control-group">
+                <label><span>Max Person B ETA Delay</span> <span id="etaVal" style="color:var(--zomato-red)">5 mins</span></label>
+                <input type="range" id="etaSlider" min="0" max="25" value="5" oninput="updateSimulation()">
+            </div>
+
+            <div class="control-group">
+                <label><span>Max Inter-Drop Radius</span> <span id="distVal" style="color:var(--zomato-red)">3 km</span></label>
+                <input type="range" id="distSlider" min="0.1" max="6.0" step="0.2" value="3.0" oninput="updateSimulation()">
+            </div>
+
+            <hr style="border:0; border-top:1px solid #334155; margin: 15px 0;">
+
+            <div class="control-group" style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="margin:0; font-size:12px;">Exclude Priority Orders (Paid Fee)</label>
+                <input type="checkbox" id="exclPriority" checked onchange="updateSimulation()" style="width: 18px; height: 18px; accent-color: var(--zomato-red);">
+            </div>
+
+            <div class="control-group" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0;">
+                <label style="margin:0; font-size:12px;">Exclude Bulky / Fragile Items</label>
+                <input type="checkbox" id="exclBulky" checked onchange="updateSimulation()" style="width: 18px; height: 18px; accent-color: var(--zomato-red);">
+            </div>
+        </div>
+
+        <!-- Right Content Section -->
+        <div style="min-width: 0;">
+            <!-- KPI Summary Banner -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title">BATCHED ORDERS</div>
+                    <div class="kpi-value" id="kpiBatched">4</div>
+                    <div class="kpi-sub">Same-route combined orders</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">ZOMATO COST SAVINGS</div>
+                    <div class="kpi-value" id="kpiSavings">₹100</div>
+                    <div class="kpi-sub">₹25 payout saved/batch</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">FEWER RIDERS NEEDED</div>
+                    <div class="kpi-value" id="kpiRiders">4</div>
+                    <div class="kpi-sub">Less pickup crowding</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">AVG EXTRA WAIT (PERSON B)</div>
+                    <div class="kpi-value" id="kpiDelay" style="color: #10B981;">+2.5 m</div>
+                    <div class="kpi-sub" id="kpiDelaySub">Within SLA Limit (+5m)</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">RIDER DISPATCH LEAD</div>
+                    <div class="kpi-value" id="kpiDispatch">5.5 m</div>
+                    <div class="kpi-sub">Assigned before ready</div>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <div class="tab-bar">
+                <button class="tab-btn active" id="btn-tab1" onclick="switchTab('tab-sim')">🚀 Batching Eligibility & Safety Overview</button>
+                <button class="tab-btn" id="btn-tab2" onclick="switchTab('tab-eta')">⏱️ Multi-Customer SLA & Dispatch Timing</button>
+            </div>
+
+            <!-- Tab 1: Route & Rejection Reason Overview -->
+            <div id="tab-sim" class="tab-content active">
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h4>🗺️ Geographic & Society Order Clustering</h4>
+                        <div id="routePlot" style="height: 310px; width:100%;"></div>
                     </div>
-                    <input type="range" id="readyGap" min="5" max="45" value="30" class="w-full accent-rose-500 bg-slate-800 rounded-lg cursor-pointer">
-                </div>
-
-                <div>
-                    <div class="flex justify-between text-sm mb-1">
-                        <span class="text-slate-300">Max Person B ETA Delay</span>
-                        <span id="maxEtaVal" class="text-rose-400 font-semibold">5 mins</span>
+                    <div class="chart-card">
+                        <h4>🚫 Rejection Reason & Exclusion Breakdown</h4>
+                        <div id="rejectionPlot" style="height: 310px; width:100%;"></div>
                     </div>
-                    <input type="range" id="maxEta" min="2" max="15" value="5" class="w-full accent-rose-500 bg-slate-800 rounded-lg cursor-pointer">
                 </div>
+            </div>
 
-                <div>
-                    <div class="flex justify-between text-sm mb-1">
-                        <span class="text-slate-300">Max Inter-Drop Radius</span>
-                        <span id="maxDistVal" class="text-rose-400 font-semibold">3.1 km</span>
+            <!-- Tab 2: ETA Delay & Dispatch Timing Breakdown -->
+            <div id="tab-eta" class="tab-content">
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h4>🎯 Customer B Extra Waiting Time vs Cap (+Mins)</h4>
+                        <div id="delayPlot" style="height: 310px; width:100%;"></div>
                     </div>
-                    <input type="range" id="maxDist" min="0.5" max="5.0" step="0.1" value="3.1" class="w-full accent-rose-500 bg-slate-800 rounded-lg cursor-pointer">
-                </div>
-
-                <div class="pt-3 border-t border-slate-800 space-y-3">
-                    <label class="flex items-center gap-3 text-sm text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="exclPriority" checked class="w-4 h-4 rounded accent-rose-500 bg-slate-800 border-slate-700">
-                        Exclude Priority Orders (Paid Fee)
-                    </label>
-                    <label class="flex items-center gap-3 text-sm text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="exclBulky" checked class="w-4 h-4 rounded accent-rose-500 bg-slate-800 border-slate-700">
-                        Exclude Bulky / Fragile Items
-                    </label>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Visualization Area -->
-        <section class="lg:col-span-3 space-y-6">
-            <!-- KPI Cards Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
-                    <p class="text-xs text-slate-400 uppercase tracking-wider">Batched Orders</p>
-                    <h3 id="kpiBatched" class="text-2xl font-bold text-emerald-400 mt-1">482</h3>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
-                    <p class="text-xs text-slate-400 uppercase tracking-wider">Zomato Cost Savings</p>
-                    <h3 id="kpiSavings" class="text-2xl font-bold text-white mt-1">₹12,050</h3>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
-                    <p class="text-xs text-slate-400 uppercase tracking-wider">Rejection Rate</p>
-                    <h3 id="kpiRejection" class="text-2xl font-bold text-rose-400 mt-1">18.4%</h3>
+                    <div class="chart-card">
+                        <h4>⏱️ Rider Dispatch Lead Time Prior to Food Ready (Mins)</h4>
+                        <div id="dispatchPlot" style="height: 310px; width:100%;"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Charts Container -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow h-80" id="geoChart"></div>
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow h-80" id="rejectionChart"></div>
-            </div>
-        </section>
-    </main>
+        </div>
+    </div>
 
     <script>
-        // Placeholder simulation runner to connect UI elements dynamically
-        function updateSimulation() {
-            const readyGap = document.getElementById('readyGap').value;
-            const maxEta = document.getElementById('maxEta').value;
-            const maxDist = document.getElementById('maxDist').value;
+        const rawData = [
+            { id: 'Pair 1 (Same Society)', readyGap: 6, etaInc: 2.5, dist: 0.1, isPriority: false, isBulky: false, savings: 25, x: 0.5, y: 0.5, prepTime: 12 },
+            { id: 'Pair 2 (Bulky/Fragile)', readyGap: 8, etaInc: 3.5, dist: 1.2, isPriority: false, isBulky: true,  savings: 25, x: 1.2, y: 0.8, prepTime: 18 },
+            { id: 'Pair 3 (Priority Paid)', readyGap: 4, etaInc: 1.5, dist: 0.8, isPriority: true,  isBulky: false, savings: 25, x: 0.8, y: 0.4, prepTime: 10 },
+            { id: 'Pair 4 (Diff Society)', readyGap: 10, etaInc: 4.2, dist: 2.5, isPriority: false, isBulky: false, savings: 25, x: 2.5, y: 1.8, prepTime: 15 },
+            { id: 'Pair 5 (Late Food Gap)', readyGap: 28, etaInc: 14.0, dist: 4.8, isPriority: false, isBulky: false, savings: 25, x: 4.8, y: 3.5, prepTime: 25 },
+            { id: 'Pair 6 (Same Block)', readyGap: 5, etaInc: 2.0, dist: 0.2, isPriority: false, isBulky: false, savings: 25, x: 0.4, y: 0.3, prepTime: 11 },
+            { id: 'Pair 7 (High Delay)', readyGap: 12, etaInc: 9.5, dist: 3.2, isPriority: false, isBulky: false, savings: 25, x: 3.2, y: 2.4, prepTime: 16 },
+            { id: 'Pair 8 (Near Sector)', readyGap: 7, etaInc: 3.0, dist: 1.5, isPriority: false, isBulky: false, savings: 25, x: 1.5, y: 1.1, prepTime: 14 }
+        ];
 
-            document.getElementById('readyGapVal').innerText = readyGap + ' mins';
-            document.getElementById('maxEtaVal').innerText = maxEta + ' mins';
-            document.getElementById('maxDistVal').innerText = maxDist + ' km';
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            if(tabId === 'tab-sim') {
+                document.getElementById('btn-tab1').classList.add('active');
+                document.getElementById('tab-sim').classList.add('active');
+            } else {
+                document.getElementById('btn-tab2').classList.add('active');
+                document.getElementById('tab-eta').classList.add('active');
+            }
+            window.dispatchEvent(new Event('resize'));
         }
 
-        ['readyGap', 'maxEta', 'maxDist', 'exclPriority', 'exclBulky'].forEach(id => {
-            document.getElementById(id).addEventListener('input', updateSimulation);
+        function updateSimulation() {
+            const readyGap = parseFloat(document.getElementById('readyGapSlider').value);
+            const maxEta = parseFloat(document.getElementById('etaSlider').value);
+            const dist = parseFloat(document.getElementById('distSlider').value);
+            const exclPriority = document.getElementById('exclPriority').checked;
+            const exclBulky = document.getElementById('exclBulky').checked;
+
+            document.getElementById('readyGapVal').innerText = readyGap + " mins";
+            document.getElementById('etaVal').innerText = maxEta + " mins";
+            document.getElementById('distVal').innerText = dist + " km";
+            document.getElementById('kpiDelaySub').innerText = "Within SLA Limit (+" + maxEta + "m)";
+
+            let batchedCount = 0;
+            let totalSavings = 0;
+            let totalDelayB = 0;
+            let totalPrepLead = 0;
+
+            let rejections = {
+                'Priority Fee Paid': 0,
+                'Bulky / Fragile Item': 0,
+                'Food Ready Gap': 0,
+                'ETA Delay Exceeded': 0,
+                'Distance Too Far': 0
+            };
+
+            let plotX = [], plotY = [], plotColors = [], plotLabels = [];
+            let pairNames = [], pairDelays = [], pairColorsBar = [];
+            let dispatchLeadTimes = [];
+
+            rawData.forEach(item => {
+                let isEligible = true;
+
+                if (exclPriority && item.isPriority) {
+                    isEligible = false;
+                    rejections['Priority Fee Paid']++;
+                } else if (exclBulky && item.isBulky) {
+                    isEligible = false;
+                    rejections['Bulky / Fragile Item']++;
+                } else if (item.readyGap > readyGap) {
+                    isEligible = false;
+                    rejections['Food Ready Gap']++;
+                } else if (item.etaInc > maxEta) {
+                    isEligible = false;
+                    rejections['ETA Delay Exceeded']++;
+                } else if (item.dist > dist) {
+                    isEligible = false;
+                    rejections['Distance Too Far']++;
+                }
+
+                plotX.push(item.x);
+                plotY.push(item.y);
+                pairNames.push(item.id);
+                pairDelays.push(item.etaInc);
+
+                let dispatchTime = Math.max(2, item.prepTime - 6);
+                dispatchLeadTimes.push(dispatchTime);
+
+                if (isEligible) {
+                    batchedCount++;
+                    totalSavings += item.savings;
+                    totalDelayB += item.etaInc;
+                    totalPrepLead += dispatchTime;
+                    plotColors.push('#10B981');
+                    pairColorsBar.push('#10B981');
+                    plotLabels.push(`${item.id}: BATCHED`);
+                } else {
+                    plotColors.push('#E23744');
+                    pairColorsBar.push('#E23744');
+                    plotLabels.push(`${item.id}: UNBATCHED`);
+                }
+            });
+
+            const avgDelay = batchedCount > 0 ? (totalDelayB / batchedCount).toFixed(1) : "0.0";
+            const avgDispatch = batchedCount > 0 ? (totalPrepLead / batchedCount).toFixed(1) : "0.0";
+
+            document.getElementById('kpiBatched').innerText = batchedCount;
+            document.getElementById('kpiSavings').innerText = "₹" + totalSavings;
+            document.getElementById('kpiRiders').innerText = batchedCount;
+            document.getElementById('kpiDelay').innerText = "+" + avgDelay + " m";
+            document.getElementById('kpiDispatch').innerText = avgDispatch + " m";
+
+            const plotlyConfig = { responsive: true, displayModeBar: false };
+            
+            const layoutBase = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#94A3B8', family: 'Segoe UI, sans-serif', size: 11 },
+                margin: { l: 35, r: 15, t: 30, b: 70 },
+                autosize: true
+            };
+
+            // Chart 1: Cluster Scatter
+            Plotly.react('routePlot', [{
+                x: plotX, y: plotY, mode: 'markers', type: 'scatter', text: plotLabels,
+                marker: { size: 14, color: plotColors, line: { color: '#FFFFFF', width: 1.5 } }
+            }], {
+                ...layoutBase,
+                xaxis: { title: 'Delivery Distance (km)', gridcolor: '#334155' },
+                yaxis: { title: 'Cluster Distance Spread (km)', gridcolor: '#334155' }
+            }, plotlyConfig);
+
+            // Chart 2: Rejection Reasons
+            Plotly.react('rejectionPlot', [{
+                x: Object.keys(rejections), y: Object.values(rejections), type: 'bar',
+                marker: { color: ['#FFB400', '#F59E0B', '#E23744', '#3B82F6', '#8B5CF6'] }
+            }], {
+                ...layoutBase,
+                xaxis: { gridcolor: '#334155', tickangle: -25 },
+                yaxis: { gridcolor: '#334155' }
+            }, plotlyConfig);
+
+            // Chart 3: Fixed Customer B Extra Delay Bar Chart (Horizontal Text)
+            Plotly.react('delayPlot', [{
+                x: pairNames, 
+                y: pairDelays, 
+                type: 'bar', 
+                marker: { color: pairColorsBar },
+                text: pairDelays.map(d => `+${d}m`), 
+                textposition: 'outside',
+                textangle: 0,
+                textfont: { color: '#FFF', size: 11, weight: 'bold' }
+            }], {
+                ...layoutBase,
+                xaxis: { gridcolor: '#334155', tickangle: -25 },
+                yaxis: { title: 'Added Delay (mins)', gridcolor: '#334155', range: [0, 20] },
+                shapes: [{ type: 'line', x0: -0.5, x1: pairNames.length - 0.5, y0: maxEta, y1: maxEta, line: { color: '#F59E0B', width: 2, dash: 'dash' } }]
+            }, plotlyConfig);
+
+            // Chart 4: Fixed Rider Dispatch Lead Time Chart (Horizontal Text)
+            Plotly.react('dispatchPlot', [{
+                x: pairNames, 
+                y: dispatchLeadTimes, 
+                type: 'bar',
+                marker: { color: '#3B82F6' },
+                text: dispatchLeadTimes.map(t => `${t}m prep lead`), 
+                textposition: 'outside',
+                textangle: 0,
+                textfont: { color: '#FFF', size: 10 }
+            }], {
+                ...layoutBase,
+                xaxis: { gridcolor: '#334155', tickangle: -25 },
+                yaxis: { title: 'Rider Dispatch Trigger Time (Mins)', gridcolor: '#334155', range: [0, 25] }
+            }, plotlyConfig);
+        }
+
+        updateSimulation();
+        window.addEventListener('resize', () => {
+            Plotly.Plots.resize('routePlot');
+            Plotly.Plots.resize('rejectionPlot');
+            Plotly.Plots.resize('delayPlot');
+            Plotly.Plots.resize('dispatchPlot');
         });
     </script>
-
-    <style>
-    /* Mobile Override Fix: Forces squished grids and cards to stack cleanly on small screens */
-    @media (max-width: 768px) {
-        body, main {
-            width: 100% !important;
-            overflow-x: hidden !important;
-            padding: 10px !important;
-        }
-        /* Convert all multi-column grids into single vertical columns */
-        .grid, [class*="grid-cols-"] {
-            display: flex !important;
-            flex-direction: column !important;
-            width: 100% !important;
-            gap: 1rem !important;
-        }
-        /* Ensure cards, sidebars, and charts don't overflow or squish */
-        aside, section, div {
-            width: 100% !important;
-            max-width: 100% !important;
-        }
-        /* Fix Plotly charts height/width on mobile */
-        .js-plotly-plot, .plot-container {
-            width: 100% !important;
-        }
-    }
-</style>
 </body>
 </html>

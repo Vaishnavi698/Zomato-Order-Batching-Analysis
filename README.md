@@ -13,7 +13,7 @@
 ---
 
 ## 📖 Contents
-1. [The problem in plain English](#-the-problem-in-plain-english)
+1. [ Problem explain with simple example ](#-problem-explain-with-simple-example)
 2. [What this project does](#-what-this-project-does)
 3. [How a batching decision is made](#-how-a-batching-decision-is-made)
 4. [Who benefits](#-who-benefits)
@@ -26,7 +26,7 @@
 
 ---
 
-## 🧩 The problem in plain English
+## 🧩 Problem explain with simple example 
 
 Imagine **Priya (Flat 201)** and **Rahul (Flat 805)** live in the **same society**. Both order from **the same Burger King** at almost the same time.
 
